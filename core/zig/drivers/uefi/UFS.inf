@@ -1,0 +1,79 @@
+## UFS.inf - UEFI Driver Module
+## Build with EDK2: build -p UFS.dsc -a X64 -t GCC5
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UFS
+  FILE_GUID                      = 8f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0.0
+  ENTRY_POINT                    = UfsDriverEntryPoint
+  CONSTRUCTOR                    = UfsDriverConstructor
+  DESTRUCTOR                     = UfsDriverDestructor
+  UNLOAD_IMAGE                   = TRUE
+  SUPPORTED_ARCHITECTURES        = X64|AARCH64
+
+[Sources]
+  UfsUefi.c
+  UfsBlockIo.c
+  UfsSimpleFs.c
+  UfsFileProtocol.c
+  UfsDevicePath.c
+  UfsRecovery.c
+  UfsBootLoader.c
+  UfsCoreWrapper.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  DevicePathLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  PrintLib
+  Crc32Lib
+  HashLib|MdePkg/Library/BaseCryptLib/BaseCryptLib.inf
+
+[Protocols]
+  gEfiDriverBindingProtocolGuid
+  gEfiComponentName2ProtocolGuid
+  gEfiComponentNameProtocolGuid
+  gEfiBlockIoProtocolGuid
+  gEfiDiskIoProtocolGuid
+  gEfiDiskIo2ProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiDevicePathProtocolGuid
+  gEfiLoadFile2ProtocolGuid
+  gEfiDevicePathUtilitiesProtocolGuid
+
+[Ppis]
+  gEfiPeiBlockIoPpiGuid
+
+[Guids]
+  gEfiPartTypeSystemPartGuid
+  gEfiPartTypeLegacyMbrGuid
+
+[FixedPcd]
+  gUfsDriverDebugLevel|UINT32|0x00000001
+  gUfsDriverCompressionDefault|UINT8|0x01
+  gUfsDriverIntegrityCheck|BOOLEAN|TRUE
+  gUfsDriverCaseInsensitive|BOOLEAN|TRUE
+
+[FeaturePcd]
+  gUfsFeatureCompression|BOOLEAN|TRUE
+  gUfsFeatureIntegrity|BOOLEAN|TRUE
+  gUfsFeatureEncryption|BOOLEAN|FALSE
+  gUfsFeatureCaseInsensitive|BOOLEAN|TRUE
+
+[PatchPcd]
+  gUfsJournalSizeMb|UINT32|64
+
+[Depex]
+  gEfiBlockIoProtocolGuid
+  gEfiDevicePathProtocolGuid

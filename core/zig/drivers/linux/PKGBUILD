@@ -1,0 +1,28 @@
+# Maintainer: UFS Project <ufs@example.com>
+pkgname=ufs-dkms
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="UFS (Universal Filesystem) kernel module - DKMS source"
+arch=('any')
+url="https://github.com/ufs-project/ufs"
+license=('MIT')
+depends=('dkms' 'linux-headers')
+makedepends=('git')
+provides=('ufs')
+conflicts=('ufs')
+source=("git+https://github.com/ufs-project/ufs.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+package() {
+    cd "${srcdir}/ufs"
+
+    # Install DKMS source
+    install -dm755 "${pkgdir}/usr/src/ufs-${pkgver}"
+    cp -r core/zig/drivers/linux/* "${pkgdir}/usr/src/ufs-${pkgver}/"
+
+    # Fix version in dkms.conf
+    sed -i "s/@VERSION@/${pkgver}/g" "${pkgdir}/usr/src/ufs-${pkgver}/dkms.conf"
+
+    # Install license
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

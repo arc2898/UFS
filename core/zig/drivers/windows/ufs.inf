@@ -1,0 +1,71 @@
+; UFS.inf - Windows IFS Driver Installation File
+; Compatible with Windows 10/11, WDK 10.0.22621+
+; Build with: msbuild UFS.vcxproj /p:Configuration=Release /p:Platform=x64
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=FileSystem
+ClassGuid={4D36E967-E325-11CE-BFC1-08002BE10318}
+Provider=%UFSProvider%
+DriverVer=11/14/2026,1.0.0.0
+CatalogFile=ufs.cat
+DriverPackageType=FileSystem
+DriverPackageDisplayName=%UFSDisplayName%
+
+[DestinationDirs]
+DefaultDestDir=12
+UFS.DriverFiles=12
+UFS.DriverFiles.Setup=11
+
+[SourceDisksNames]
+1=%UFSDescription%,,,
+
+[SourceDisksFiles]
+ufs.sys=1
+
+[Manufacturer]
+%UFSProvider%=UFS.Devices,NTamd64,NTarm64
+
+[UFS.Devices.NTamd64]
+%UFSDeviceDesc%=UFS.Install,UFS.Device
+
+[UFS.Devices.NTarm64]
+%UFSDeviceDesc%=UFS.Install,UFS.Device
+
+[UFS.Install.NT]
+CopyFiles=UFS.DriverFiles
+AddReg=UFS.AddReg
+
+[UFS.Install.NT.Services]
+AddService=ufs,0x00000002,UFS.Service
+
+[UFS.Service]
+DisplayName=%UFSServiceName%
+Description=%UFSServiceDesc%
+ServiceType=2                  ; SERVICE_FILE_SYSTEM_DRIVER
+StartType=0                    ; SERVICE_BOOT_START (for boot) or 3 for demand
+ErrorControl=1                 ; SERVICE_ERROR_NORMAL
+ServiceBinary=%12%\ufs.sys
+LoadOrderGroup=File System
+Tag=1
+
+[UFS.AddReg]
+HKR,,"DebugFlags",0x00010001,0
+HKR,,"CompressionAlgorithm",0x00010001,1
+HKR,,"IntegrityCheck",0x00010001,1
+HKR,,"CaseInsensitive",0x00010001,1
+HKR,,"JournalSizeMB",0x00010001,64
+
+[UFS.DriverFiles]
+ufs.sys
+
+[UFS.DriverFiles.Setup]
+ufs.coinstaller.dll
+
+[Strings]
+UFSProvider="UFS Project"
+UFSDescription="Universal Filesystem Driver"
+UFSDisplayName="UFS Filesystem Driver"
+UFSDeviceDesc="UFS Volume"
+UFSServiceName="UFS Filesystem"
+UFSServiceDesc="Universal Filesystem (UFS) Kernel Driver"

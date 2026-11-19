@@ -1,0 +1,28 @@
+#!/usr/bin/make -f
+# UFS DKMS Debian packaging rules
+
+export DH_VERBOSE=1
+
+%:
+	dh $@ --with dkms
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf build/
+
+override_dh_auto_build:
+	# Nothing to build at package build time - DKMS builds at install time
+	true
+
+override_dh_auto_install:
+	# Install source to /usr/src/ufs-<version>
+	dh_install -pufs-dkms drivers/linux/* /usr/src/ufs-$(DEB_VERSION_UPSTREAM)/
+
+	# Install dkms.conf with version substitution
+	sed "s/@VERSION@/$(DEB_VERSION_UPSTREAM)/g" drivers/linux/dkms.conf > debian/ufs-dkms/usr/src/ufs-$(DEB_VERSION_UPSTREAM)/dkms.conf
+
+override_dh_dkms:
+	dh_dkms -V$(DEB_VERSION_UPSTREAM)
+
+override_dh_gencontrol:
+	dh_gencontrol -- -Vversion:Depends="dkms, linux-headers-generic | linux-headers-\$${kernel:Version}"

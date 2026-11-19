@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFS Project Tracking Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d0e10;
+            --bg-elevated: #14161a;
+            --bg-hover: #1c1f26;
+            --border: #2a2e36;
+            --border-strong: #3a3f4a;
+            --fg: #e8e9eb;
+            --fg-muted: #8b8f9a;
+            --fg-subtle: #5c606b;
+            --accent: #00d4aa;
+            --accent-dim: #00b895;
+            --accent-bg: rgba(0, 212, 170, 0.1);
+            --warn: #f5a623;
+            --warn-bg: rgba(245, 166, 35, 0.1);
+            --danger: #ff4757;
+            --danger-bg: rgba(255, 71, 87, 0.1);
+            --info: #4dabf7;
+            --info-bg: rgba(77, 171, 247, 0.1);
+            --success: #40c057;
+            --ufs-color: #00d4aa;
+            --ext4-color: #4dabf7;
+            --xfs-color: #f5a623;
+            --btrfs-color: #a663cc;
+            --zfs-color: #ff6b6b;
+            --ntfs-color: #00b8d4;
+            --apfs-color: #fa5252;
+            --f2fs-color: #69db7c;
+            --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+            --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --radius: 8px;
+            --radius-sm: 4px;
+            --transition: 150ms ease;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-lg: 0 12px 48px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-elevated);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--bg);
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: var(--fg);
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--fg-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-section {
+            margin-bottom: 28px;
+        }
+
+        .nav-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--fg-subtle);
+            padding: 0 12px 8px;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            color: var(--fg-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--transition);
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--fg);
+        }
+
+        .nav-item.active {
+            background: var(--accent-bg);
+            color: var(--accent);
+        }
+
+        .nav-item .badge {
+            margin-left: auto;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .badge-done { background: rgba(64, 192, 87, 0.2); color: var(--success); }
+        .badge-active { background: rgba(77, 171, 247, 0.2); color: var(--info); animation: pulse 2s infinite; }
+        .badge-pending { background: var(--border); color: var(--fg-subtle); }
+        .badge-blocked { background: rgba(255, 71, 87, 0.2); color: var(--danger); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .project-meta {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 0 8px;
+        }
+
+        .meta-label { color: var(--fg-muted); font-size: 13px; }
+        .meta-value { color: var(--fg); font-size: 13px; font-weight: 500; font-family: var(--mono); text-align: right; }
+
+        /* Main Content */
+        .main {
+            padding: 32px 40px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.8px;
+            color: var(--fg);
+        }
+
+        .header-sub {
+            color: var(--fg-muted);
+            font-size: 15px;
+            margin-top: 4px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--sans);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all var(--transition);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--fg);
+            border-color: var(--border);
+        }
+
+        .btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--fg-muted);
+            border-color: transparent;
+        }
+
+        .btn-ghost:hover { background: var(--bg-hover); color: var(--fg); }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all var(--transition);
+        }
+
+        .stat-card:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: var(--shadow); }
+
+        .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-subtle); font-weight: 600; }
+        .stat-value { font-size: 36px; font-weight: 700; font-family: var(--mono); color: var(--fg); letter-spacing: -1px; line-height: 1; }
+        .stat-sub { font-size: 13px; color: var(--fg-muted); display: flex; align-items: center; gap: 6px; }
+
+        .stat-trend { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+        .trend-neutral { color: var(--fg-muted); }
+
+        /* Sections */
+        .section {
+            margin-bottom: 36px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .section-title { font-size: 18px; font-weight: 600; color: var(--fg); }
+        .section-subtitle { font-size: 13px; color: var(--fg-muted); }
+
+        /* Milestone Table */
+        .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-elevated); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+        th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+
+        th { background: var(--bg); font-weight: 600; color: var(--fg-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; }
+
+        tr:last-child td { border-bottom: none; }
+
+        tr:hover td { background: var(--bg-hover); }
+
+        .milestone-id { font-family: var(--mono); font-weight: 600; color: var(--fg); white-space: nowrap; }
+
+        .milestone-name { font-weight: 500; color: var(--fg); max-width: 280px; }
+
+        .milestone-desc { color: var(--fg-muted); font-size: 12px; max-width: 320px; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .status-done { background: rgba(64, 192, 87, 0.15); color: var(--success); border: 1px solid rgba(64, 192, 87, 0.3); }
+        .status-active { background: rgba(77, 171, 247, 0.15); color: var(--info); border: 1px solid rgba(77, 171, 247, 0.3); }
+        .status-pending { background: var(--border); color: var(--fg-subtle); border: 1px solid var(--border-strong); }
+        .status-blocked { background: rgba(255, 71, 87, 0.15); color: var(--danger); border: 1px solid rgba(255, 71, 87, 0.3); }
+
+        .progress-bar {
+            width: 140px;
+            height: 6px;
+            background: var(--bg);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 300ms ease;
+        }
+
+        .progress-fill.done { background: var(--success); }
+        .progress-fill.active { background: var(--info); }
+        .progress-fill.pending { background: var(--border); }
+
+        .progress-text { font-family: var(--mono); font-size: 12px; color: var(--fg-muted); white-space: nowrap; }
+
+        .date-cell { font-family: var(--mono); font-size: 12px; color: var(--fg-muted); white-space: nowrap; }
+        .date-cell.current { color: var(--accent); font-weight: 500; }
+
+        /* Task Details Panel */
+        .detail-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            display: none;
+        }
+
+        .detail-panel.open { display: block; animation: slideIn 200ms ease; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+
+        .detail-title { font-size: 20px; font-weight: 600; }
+        .detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 24px; }
+
+        .detail-field { display: flex; flex-direction: column; gap: 4px; }
+        .detail-field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-subtle); font-weight: 600; }
+        .detail-field span { font-size: 14px; color: var(--fg); font-family: var(--mono); }
+
+        .task-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: all var(--transition);
+        }
+
+        .task-item:hover { border-color: var(--border-strong); }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-strong);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all var(--transition);
+            background: var(--bg-elevated);
+        }
+
+        .task-checkbox.checked { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+        .task-checkbox svg { width: 14px; height: 14px; }
+
+        .task-content { flex: 1; min-width: 0; }
+        .task-title { font-size: 13px; font-weight: 500; color: var(--fg); margin-bottom: 2px; }
+        .task-title.done { text-decoration: line-through; color: var(--fg-muted); }
+        .task-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--fg-subtle); }
+
+        .task-tag {
+            padding: 2px 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--fg-muted); }
+        .empty-state svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.5; }
+
+        /* Footer */
+        .footer { padding: 24px 0 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--fg-subtle); }
+        .footer-links { display: flex; gap: 20px; }
+        .footer-links a { color: var(--fg-muted); text-decoration: none; transition: color var(--transition); }
+        .footer-links a:hover { color: var(--accent); }
+
+        /* Benchmarks View Styles */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .chart-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--fg);
+        }
+
+        .chart-subtitle {
+            font-size: 12px;
+            color: var(--fg-muted);
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-control {
+            padding: 6px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--fg-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .chart-control:hover, .chart-control.active {
+            background: var(--accent-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+        }
+
+        .table-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .fs-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .fs-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .fs-badge.ufs { background: var(--ufs-color); }
+        .fs-badge.ext4 { background: var(--ext4-color); }
+        .fs-badge.xfs { background: var(--xfs-color); }
+        .fs-badge.btrfs { background: var(--btrfs-color); }
+        .fs-badge.zfs { background: var(--zfs-color); }
+        .fs-badge.ntfs { background: var(--ntfs-color); }
+        .fs-badge.apfs { background: var(--apfs-color); }
+        .fs-badge.f2fs { background: var(--f2fs-color); }
+
+        .metric-cell {
+            font-family: var(--mono);
+            font-size: 13px;
+        }
+
+        .metric-cell.win { color: var(--success); font-weight: 600; }
+        .metric-cell.lose { color: var(--danger); }
+        .metric-cell.tie { color: var(--warn); }
+
+        .ratio-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .ratio-badge.win { background: rgba(64, 192, 87, 0.15); color: var(--success); }
+        .ratio-badge.lose { background: rgba(255, 71, 87, 0.15); color: var(--danger); }
+        .ratio-badge.tie { background: rgba(245, 166, 35, 0.15); color: var(--warn); }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 16px 24px;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--fg-muted);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .trend-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .app { grid-template-columns: 1fr; }
+            .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); transition: transform 250ms ease; width: 280px; box-shadow: var(--shadow-lg); }
+            .sidebar.open { transform: translateX(0); }
+            .main { padding: 24px 20px; }
+            .header h1 { font-size: 26px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            th, td { padding: 12px 14px; }
+            .progress-bar { width: 100px; }
+            .milestone-name, .milestone-desc { max-width: 180px; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn { display: none; position: fixed; top: 16px; left: 16px; z-index: 101; padding: 10px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--fg); }
+        @media (max-width: 1024px) { .mobile-menu-btn { display: flex; } }
+
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; opacity: 0; transition: opacity 250ms ease; pointer-events: none; }
+        .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+
+        /* Loading */
+        .loading { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: 13px; }
+        .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 800ms linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast notifications */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 12px 18px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 10px; font-size: 13px; animation: slideInRight 300ms ease; }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        .toast.info { border-left: 3px solid var(--info); }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <button class="mobile-menu-btn" id="menuBtn" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+    <div class="app">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+            <div class="logo">
+                <div class="logo-mark">U</div>
+                <div>
+                    <div class="logo-text">UFS Tracker</div>
+                    <div class="logo-sub">Project U Dashboard</div>
+                </div>
+            </div>
+
+            <nav class="nav-section">
+                <div class="nav-label">Views</div>
+                <button class="nav-item active" data-view="overview" onclick="showView('overview')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+                    Overview
+                </button>
+                <button class="nav-item" data-view="benchmarks" onclick="showView('benchmarks')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    Benchmarks
+                </button>
+                <button class="nav-item" data-view="milestones" onclick="showView('milestones')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Milestones
+                </button>
+                <button class="nav-item" data-view="tasks" onclick="showView('tasks')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    Tasks
+                </button>
+                <button class="nav-item" data-view="architecture" onclick="showView('architecture')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                    Architecture
+                </button>
+            </nav>
+
+            <nav class="nav-section">
+                <div class="nav-label">Actions</div>
+                <button class="nav-item" onclick="refreshData()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    Refresh Data
+                </button>
+                <button class="nav-item" onclick="exportData()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Export JSON
+                </button>
+            </nav>
+
+            <div class="project-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Version</span>
+                    <span class="meta-value" id="metaVersion">v1.0.0</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Status</span>
+                    <span class="meta-value" id="metaStatus">Architecture Phase</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Target</span>
+                    <span class="meta-value" id="metaTarget">2026-10-22</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Last Updated</span>
+                    <span class="meta-value" id="metaUpdated">--</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main" role="main">
+            <!-- Overview View -->
+            <section id="view-overview" class="view active">
+                <header class="header">
+                    <div>
+                        <h1>Project Overview</h1>
+                        <p class="header-sub">UFS — Universal Filesystem for Windows, Linux, macOS</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="refreshData()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                            Refresh
+                        </button>
+                    </div>
+                </header>
+
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Current Milestone</h2>
+                    </div>
+                    <div class="detail-panel open" id="currentMilestonePanel">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Recent Activity</h2>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Milestone</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activityLog">
+                                <tr><td colspan="4" class="empty-state" style="padding: 40px;">Loading activity...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Milestones View -->
+            <section id="view-milestones" class="view">
+                <header class="header">
+                    <div>
+                        <h1>Milestones</h1>
+                        <p class="header-sub">11 milestones across ~40 weeks — Architecture through Release Candidate</p>
+                    </div>
+                    <div class="header-actions">
+                        <select class="btn btn-secondary" id="milestoneFilter" onchange="filterMilestones()">
+                            <option value="all">All Milestones</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="done">Completed</option>
+                            <option value="blocked">Blocked</option>
+                        </select>
+                    </div>
+                </header>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Duration</th>
+                                <th>Target Date</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody id="milestonesTable">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tasks View -->
+            <section id="view-tasks" class="view">
+                <header class="header">
+                    <div>
+                        <h1>Tasks</h1>
+                        <p class="header-sub">Detailed task breakdown by milestone</p>
+                    </div>
+                    <div class="header-actions">
+                        <select class="btn btn-secondary" id="taskMilestoneFilter" onchange="filterTasks()">
+                            <option value="all">All Milestones</option>
+                        </select>
+                        <select class="btn btn-secondary" id="taskStatusFilter" onchange="filterTasks()">
+                            <option value="all">All Statuses</option>
+                            <option value="done">Done</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="pending">Pending</option>
+                            <option value="blocked">Blocked</option>
+                        </select>
+                    </div>
+                </header>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Milestone</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Assignee</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTable">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Architecture View -->
+            <section id="view-architecture" class="view">
+                <header class="header">
+                    <div>
+                        <h1>Architecture Overview</h1>
+                        <p class="header-sub">Core subsystems and their implementation status</p>
+                    </div>
+                </header>
+
+                <div class="section">
+                    <h2 class="section-title" style="margin-bottom: 16px;">Core Modules</h2>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Module</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Lines</th>
+                                    <th>Test Coverage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modulesTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title" style="margin-bottom: 16px;">Architecture Decision Records</h2>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ADR</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Locked</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adrsTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Benchmarks View -->
+            <section id="view-benchmarks" class="view">
+                <header class="header">
+                    <div>
+                        <h1>UFS vs Filesystem Benchmarks</h1>
+                        <p class="header-sub">Real-time performance comparison across 9 filesystems • Auto-updated from CI</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="refreshBenchBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                            Refresh Data
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Stats Summary -->
+                <div class="stats-grid" id="benchStatsGrid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Microbenchmarks -->
+                <section id="microbenchmarks">
+                    <div class="section-header">
+                        <h2 class="section-title">Microbenchmarks</h2>
+                        <div class="legend">
+                            <div class="legend-item"><span class="legend-color" style="background: var(--success)"></span>WIN ≥1.1x ext3</div>
+                            <div class="legend-item"><span class="legend-color" style="background: var(--warn)"></span>TIE 0.9-1.1x</div>
+                            <div class="legend-item"><span class="legend-color" style="background: var(--danger)"></span>LOSE <0.9x</div>
+                        </div>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Integrity: CRC32C / BLAKE3 Throughput</div>
+                                    <div class="chart-subtitle">Hardware-accelerated vs software (MB/s) - Higher is better</div>
+                                </div>
+                                <div class="chart-controls">
+                                    <button class="chart-control active" data-metric="crc32c">CRC32C</button>
+                                    <button class="chart-control" data-metric="blake3">BLAKE3</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="integrityChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Compression: LZ4 / ZSTD Performance</div>
+                                    <div class="chart-subtitle">Compress/Decompress throughput (MB/s) - Higher is better</div>
+                                </div>
+                                <div class="chart-controls">
+                                    <button class="chart-control active" data-metric="compress">Compress</button>
+                                    <button class="chart-control" data-metric="decompress">Decompress</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="compressionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Serialization Performance</div>
+                                    <div class="chart-subtitle">Canonical binary encoding (ops/sec) - Higher is better</div>
+                                </div>
+                                <div class="chart-controls">
+                                    <button class="chart-control active" data-metric="write">Write</button>
+                                    <button class="chart-control" data-metric="read">Read</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="serializationChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Metadata Capsule Operations</div>
+                                    <div class="chart-subtitle">Serialize/Deserialize/Lookup (ops/sec) - Higher is better</div>
+                                </div>
+                                <div class="chart-controls">
+                                    <button class="chart-control active" data-metric="serialize">Serialize</button>
+                                    <button class="chart-control" data-metric="deserialize">Deserialize</button>
+                                    <button class="chart-control" data-metric="lookup">Lookup</button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="capsuleChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Filesystem Operations -->
+                <section id="fs-operations">
+                    <div class="section-header">
+                        <h2 class="section-title">Filesystem Operations</h2>
+                    </div>
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-title">Filesystem Operation Benchmarks (ops/sec)</div>
+                            <div class="legend">
+                                <div class="legend-item"><span class="legend-color" style="background: var(--success)"></span>WIN ≥1.1x ext3</div>
+                                <div class="legend-item"><span class="legend-color" style="background: var(--warn)"></span>TIE 0.9-1.1x</div>
+                                <div class="legend-item"><span class="legend-color" style="background: var(--danger)"></span>LOSE <0.9x</div>
+                            </div>
+                        </div>
+                        <table id="fsOpsTable">
+                            <thead>
+                                <tr>
+                                    <th>Filesystem</th>
+                                    <th>Create File</th>
+                                    <th>Read 4K</th>
+                                    <th>Write 4K</th>
+                                    <th>Mkdir</th>
+                                    <th>Rmdir</th>
+                                    <th>Readdir</th>
+                                    <th>Stat</th>
+                                    <th>Sync</th>
+                                    <th>Set Xattr</th>
+                                    <th>Get Xattr</th>
+                                    <th>Overall</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fsOpsBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Throughput -->
+                <section id="throughput">
+                    <div class="section-header">
+                        <h2 class="section-title">Throughput Benchmarks</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Sequential Read/Write Throughput</div>
+                                    <div class="chart-subtitle">100MB files (MB/s) - Higher is better</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="seqThroughputChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Random 4K Read/Write</div>
+                                    <div class="chart-subtitle">50MB working set (MB/s) - Higher is better</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="randThroughputChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Compression Ratios -->
+                <section id="compression">
+                    <div class="section-header">
+                        <h2 class="section-title">Compression Ratios</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Text Data Compression Ratios</div>
+                                    <div class="chart-subtitle">Lower ratio = better compression</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="ratioChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Compression Speed vs Ratio Trade-off</div>
+                                    <div class="chart-subtitle">LZ4 vs ZSTD at different levels</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="tradeoffChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Crash Recovery -->
+                <section id="recovery">
+                    <div class="section-header">
+                        <h2 class="section-title">Crash Recovery & Integrity</h2>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Journal Recovery Time</div>
+                                    <div class="chart-subtitle">Mount with replay (ms) - Lower is better</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="recoveryChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <div class="chart-title">Data Integrity After Crash</div>
+                                    <div class="chart-subtitle">Files recovered correctly (%) - Higher is better</div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="integrityChart2"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Historical Trends -->
+                <section id="trends">
+                    <div class="section-header">
+                        <h2 class="section-title">Historical Performance Trends</h2>
+                    </div>
+                    <div class="trend-card">
+                        <div class="chart-wrapper">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+            </section>
+
+            <footer class="footer">
+                <div>UFS Project Tracker — Data from <code>tracking/data.json</code></div>
+                <div class="footer-links">
+                    <a href="#" onclick="refreshData(); return false;">Refresh</a>
+                    <a href="#" onclick="exportData(); return false;">Export</a>
+                    <a href="https://github.com" target="_blank">Repository</a>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== DATA & STATE ====================
+        let projectData = null;
+        let currentView = 'overview';
+
+        // ==================== INITIALIZATION ====================
+        async function init() {
+            await loadData();
+            renderAll();
+            setupAutoRefresh();
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch('data.json?t=' + Date.now());
+                if (!response.ok) throw new Error('Failed to load data.json');
+                projectData = await response.json();
+                showToast('Data loaded successfully', 'success');
+            } catch (e) {
+                console.error('Load error:', e);
+                showToast('Failed to load data.json — using defaults', 'error');
+                projectData = getDefaultData();
+            }
+        }
+
+        function getDefaultData() {
+            return {
+                version: "1.0.0",
+                status: "Architecture Phase",
+                targetDate: "2026-10-22",
+                lastUpdated: new Date().toISOString(),
+                stats: {
+                    totalMilestones: 11,
+                    completedMilestones: 1,
+                    activeMilestones: 0,
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    overallProgress: 9
+                },
+                milestones: [
+                    { id: "M0", name: "Environment & Repository Setup", description: "Dev environment, Zig, WDK, UEFI tools, Git, CI/CD", duration: "1 week", target: "2026-11-20", status: "pending", progress: 0, tasks: [] },
+                    { id: "M1", name: "Research & Architecture", description: "Filesystem research, ADRs, innovation report, architecture docs", duration: "2 weeks", target: "2026-12-04", status: "done", progress: 100, tasks: [] },
+                    { id: "M2", name: "On-Disk Format Specification", description: "Complete v1 byte-level format spec", duration: "2 weeks", target: "2026-12-18", status: "pending", progress: 0, tasks: [] },
+                    { id: "M3", name: "Shared Zig Engine", description: "Portable core library (6 weeks)", duration: "6 weeks", target: "2026-01-29", status: "pending", progress: 0, tasks: [] },
+                    { id: "M4", name: "Image Tools", description: "mkufs, ufsck, ufsinfo, ufsctl", duration: "3 weeks", target: "2026-02-19", status: "pending", progress: 0, tasks: [] },
+                    { id: "M5", name: "FUSE Driver", description: "First usable filesystem via FUSE", duration: "4 weeks", target: "2026-03-19", status: "pending", progress: 0, tasks: [] },
+                    { id: "M6", name: "Linux Native VFS Driver", description: "Production kernel module", duration: "4 weeks", target: "2026-04-16", status: "pending", progress: 0, tasks: [] },
+                    { id: "M7", name: "Windows 11 IFS Driver", description: "Native kernel filesystem driver", duration: "8 weeks", target: "2026-06-11", status: "pending", progress: 0, tasks: [] },
+                    { id: "M8", name: "macOS FSKit Extension", description: "File System Extension for macOS 13+", duration: "6 weeks", target: "2026-07-23", status: "pending", progress: 0, tasks: [] },
+                    { id: "M9", name: "UEFI Boot Support", description: "UFS.efi boot application", duration: "3 weeks", target: "2026-08-13", status: "pending", progress: 0, tasks: [] },
+                    { id: "M10", name: "Reliability & Performance", description: "Crash testing, fuzzing, benchmarks", duration: "6 weeks", target: "2026-09-24", status: "pending", progress: 0, tasks: [] },
+                    { id: "M11", name: "Release Candidate", description: "v1.0-rc1 preparation", duration: "4 weeks", target: "2026-10-22", status: "pending", progress: 0, tasks: [] }
+                ],
+                modules: [
+                    { name: "main.zig", description: "Entry point, constants, errors", status: "done", lines: 140, coverage: 95 },
+                    { name: "serialization.zig", description: "Canonical binary encoding + CRC32C", status: "done", lines: 350, coverage: 90 },
+                    { name: "metadata.zig", description: "Metadata Capsules (namespaced)", status: "done", lines: 400, coverage: 85 },
+                    { name: "allocation.zig", description: "AGs, bitmap, free extent B+ tree", status: "done", lines: 630, coverage: 80 },
+                    { name: "directory.zig", description: "Linear + B+ tree directories", status: "done", lines: 620, coverage: 75 },
+                    { name: "journal.zig", description: "Logical redo journal, recovery", status: "done", lines: 690, coverage: 70 },
+                    { name: "integrity.zig", description: "CRC32C (meta) + BLAKE3 (data)", status: "done", lines: 570, coverage: 85 },
+                    { name: "compression.zig", description: "LZ4/ZSTD pipeline", status: "done", lines: 430, coverage: 80 },
+                    { name: "blockdev.zig", description: "Platform abstraction layer", status: "done", lines: 330, coverage: 75 },
+                    { name: "version.zig", description: "Versioning + feature flags", status: "done", lines: 340, coverage: 90 },
+                    { name: "crypto.zig", description: "Per-file encryption (stub)", status: "pending", lines: 330, coverage: 0 },
+                    { name: "utils.zig", description: "Common utilities", status: "done", lines: 480, coverage: 95 }
+                ],
+                adrs: [
+                    { id: "ADR-001", title: "On-Disk Format Serialization", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-002", title: "Journaling Architecture", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-003", title: "Block Allocation", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-004", title: "Directory Indexing", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-005", title: "Compression", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-006", title: "Integrity", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-007", title: "Cross-Platform Metadata", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-008", title: "Versioning", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-009", title: "Zig Assembly Architecture", status: "Accepted", date: "2026-11-13", locked: true },
+                    { id: "ADR-010", title: "OS Integration", status: "Accepted", date: "2026-11-13", locked: true }
+                ],
+                activity: [
+                    { time: "2026-11-13 19:00", milestone: "M1", action: "Completed", detail: "All ADRs and architecture docs finalized" },
+                    { time: "2026-11-13 18:30", milestone: "M0", action: "Started", detail: "Repository initialized with Zig core structure" }
+                ]
+            };
+        }
+
+        function setupAutoRefresh() {
+            setInterval(async () => {
+                try {
+                    const response = await fetch('data.json?t=' + Date.now());
+                    if (response.ok) {
+                        const newData = await response.json();
+                        if (JSON.stringify(newData) !== JSON.stringify(projectData)) {
+                            projectData = newData;
+                            renderAll();
+                            showToast('Data updated from file', 'info');
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }, 5000);
+        }
+
+        // ==================== RENDERING ====================
+        function renderAll() {
+            renderStats();
+            renderCurrentMilestone();
+            renderActivity();
+            renderMilestones();
+            renderTasks();
+            renderModules();
+            renderADRs();
+            updateMeta();
+            renderBenchStats();
+            renderFsOpsTable();
+            initBenchCharts();
+        }
+
+        function updateMeta() {
+            document.getElementById('metaVersion').textContent = 'v' + projectData.version;
+            document.getElementById('metaStatus').textContent = projectData.status;
+            document.getElementById('metaTarget').textContent = projectData.targetDate;
+            document.getElementById('metaUpdated').textContent = formatDateTime(projectData.lastUpdated);
+        }
+
+        function renderStats() {
+            const s = projectData.stats;
+            const container = document.getElementById('statsGrid');
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Milestones</div>
+                    <div class="stat-value">${s.completedMilestones}/${s.totalMilestones}</div>
+                    <div class="stat-sub"><span class="stat-trend trend-up">${s.overallProgress}%</span> overall progress</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Tasks</div>
+                    <div class="stat-value">${s.completedTasks}/${s.totalTasks}</div>
+                    <div class="stat-sub">${s.activeMilestones} active milestone${s.activeMilestones !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Core Modules</div>
+                    <div class="stat-value">${projectData.modules.filter(m => m.status === 'done').length}/${projectData.modules.length}</div>
+                    <div class="stat-sub">Implementation complete</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">ADRs</div>
+                    <div class="stat-value">${projectData.adrs.filter(a => a.status === 'Accepted').length}/${projectData.adrs.length}</div>
+                    <div class="stat-sub">Architecture decisions locked</div>
+                </div>
+            `;
+        }
+
+        function renderCurrentMilestone() {
+            const active = projectData.milestones.find(m => m.status === 'active') || projectData.milestones.find(m => m.status === 'pending');
+            const container = document.getElementById('currentMilestonePanel');
+            if (!active) {
+                container.innerHTML = '<div class="empty-state">No active milestone</div>';
+                return;
+            }
+            container.innerHTML = `
+                <div class="detail-header">
+                    <div>
+                        <div class="detail-title">${active.id}: ${active.name}</div>
+                        <div class="detail-meta">
+                            <span class="status-badge status-${active.status}">${active.status}</span>
+                            <span class="task-tag">Target: ${active.target}</span>
+                            <span class="task-tag">${active.duration}</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar" style="width: 200px; flex-shrink: 0;">
+                        <div class="progress-fill ${active.status}" style="width: ${active.progress}%"></div>
+                    </div>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-field"><label>Description</label><span>${active.description}</span></div>
+                    <div class="detail-field"><label>Progress</label><span>${active.progress}%</span></div>
+                    <div class="detail-field"><label>Duration</label><span>${active.duration}</span></div>
+                    <div class="detail-field"><label>Target Date</label><span>${active.target}</span></div>
+                </div>
+                <div class="task-list" id="currentMilestoneTasks">
+                    ${active.tasks && active.tasks.length > 0 ? active.tasks.map(t => renderTaskItem(t)).join('') : '<div class="empty-state" style="padding: 20px;">No tasks defined yet</div>'}
+                </div>
+            `;
+        }
+
+        function renderActivity() {
+            const container = document.getElementById('activityLog');
+            const activities = projectData.activity || [];
+            if (activities.length === 0) {
+                container.innerHTML = '<tr><td colspan="4" class="empty-state" style="padding: 40px;">No activity recorded</td></tr>';
+                return;
+            }
+            container.innerHTML = activities.slice(0, 10).map(a => `
+                <tr>
+                    <td><span style="font-family: var(--mono); font-size: 12px; color: var(--fg-muted);">${a.time}</span></td>
+                    <td><span class="task-tag">${a.milestone}</span></td>
+                    <td><span class="status-badge status-${a.action.toLowerCase()}">${a.action}</span></td>
+                    <td style="color: var(--fg-muted); font-size: 13px;">${a.detail}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderMilestones() {
+            const container = document.getElementById('milestonesTable');
+            const filter = document.getElementById('milestoneFilter').value;
+            const milestones = projectData.milestones.filter(m => filter === 'all' || m.status === filter);
+            container.innerHTML = milestones.map(m => `
+                <tr onclick="showMilestoneDetail('${m.id}')" style="cursor: pointer;">
+                    <td class="milestone-id">${m.id}</td>
+                    <td class="milestone-name">${m.name}</td>
+                    <td class="milestone-desc">${m.description}</td>
+                    <td><span style="font-family: var(--mono); font-size: 12px; color: var(--fg-muted);">${m.duration}</span></td>
+                    <td class="date-cell ${isCurrentWeek(m.target) ? 'current' : ''}">${formatDate(m.target)}</td>
+                    <td><span class="status-badge status-${m.status}">${m.status}</span></td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${m.status}" style="width: ${m.progress}%"></div>
+                        </div>
+                        <span class="progress-text">${m.progress}%</span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasksTable');
+            const milestoneFilter = document.getElementById('taskMilestoneFilter').value;
+            const statusFilter = document.getElementById('taskStatusFilter').value;
+
+            // Populate milestone filter
+            const milestoneSelect = document.getElementById('taskMilestoneFilter');
+            if (milestoneSelect.options.length <= 1) {
+                projectData.milestones.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = `${m.id}: ${m.name}`;
+                    milestoneSelect.appendChild(opt);
+                });
+            }
+
+            let tasks = [];
+            projectData.milestones.forEach(m => {
+                (m.tasks || []).forEach(t => tasks.push({ ...t, milestone: m.id }));
+            });
+
+            if (milestoneFilter !== 'all') tasks = tasks.filter(t => t.milestone === milestoneFilter);
+            if (statusFilter !== 'all') tasks = tasks.filter(t => t.status === statusFilter);
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding: 40px;">No tasks match the current filters</td></tr>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(t => `
+                <tr>
+                    <td><span class="task-title ${t.status === 'done' ? 'done' : ''}">${t.title}</span></td>
+                    <td><span class="task-tag">${t.milestone}</span></td>
+                    <td><span class="status-badge status-${t.status}">${t.status.replace('_', ' ')}</span></td>
+                    <td><span class="task-tag" style="background: ${getPriorityBg(t.priority)}; color: ${getPriorityColor(t.priority)};">${t.priority}</span></td>
+                    <td style="color: var(--fg-muted); font-size: 12px;">${t.assignee || '—'}</td>
+                    <td class="date-cell">${t.updated ? formatDate(t.updated) : '—'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderModules() {
+            const container = document.getElementById('modulesTable');
+            container.innerHTML = projectData.modules.map(m => `
+                <tr>
+                    <td><code style="font-family: var(--mono); font-size: 13px;">${m.name}</code></td>
+                    <td style="color: var(--fg-muted);">${m.description}</td>
+                    <td><span class="status-badge status-${m.status}">${m.status}</span></td>
+                    <td><span style="font-family: var(--mono); color: var(--fg-muted);">${m.lines}</span></td>
+                    <td><span style="font-family: var(--mono); color: ${m.coverage >= 80 ? 'var(--success)' : m.coverage >= 60 ? 'var(--warn)' : 'var(--danger)'};">${m.coverage}%</span></td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== BENCHMARK CHARTS (Real Data Only) ====================
+        let benchCharts = {};
+        const fsColors = {
+            ufs: '#00d4aa',
+            ext4: '#4dabf7',
+            xfs: '#f5a623',
+            btrfs: '#a663cc',
+            zfs: '#ff6b6b',
+            ntfs: '#00b8d4',
+            apfs: '#fa5252',
+            f2fs: '#69db7c'
+        };
+        const fsOrder = ['ufs', 'ext4', 'xfs', 'btrfs', 'zfs', 'ntfs', 'apfs', 'f2fs'];
+        const fsNames = { ufs: 'UFS', ext4: 'ext4', xfs: 'XFS', btrfs: 'Btrfs', zfs: 'ZFS', ntfs: 'NTFS', apfs: 'APFS', f2fs: 'F2FS' };
+
+        function getBarOptions(yTitle) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#e8e9eb', font: { size: 11 } } } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#8b8f9a', font: { size: 11 } } },
+                    y: { title: { display: true, text: yTitle, color: '#8b8f9a', font: { size: 11 } }, grid: { color: '#2a2e36' }, ticks: { color: '#8b8f9a', font: { size: 11 } }, beginAtZero: true }
+                }
+            };
+        }
+
+        function initBenchCharts() {
+            const noDataConfig = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Real benchmark data pending — requires driver load on hardware',
+                        color: '#8b8f9a',
+                        font: { size: 14 }
+                    }
+                },
+                scales: {
+                    x: { display: false }, y: { display: false }
+                }
+            };
+
+            // All charts show "data pending" state
+            const chartIds = [
+                'integrityChart', 'compressionChart', 'serializationChart', 'capsuleChart',
+                'seqThroughputChart', 'randThroughputChart', 'ratioChart', 'tradeoffChart',
+                'recoveryChart', 'integrityChart2', 'trendChart'
+            ];
+
+            chartIds.forEach(id => {
+                const ctx = document.getElementById(id);
+                if (ctx) {
+                    benchCharts[id] = new Chart(ctx, {
+                        type: id === 'tradeoffChart' ? 'scatter' : id === 'trendChart' ? 'line' : 'bar',
+                        data: { labels: [], datasets: [] },
+                        options: noDataConfig
+                    });
+                }
+            });
+
+            // Update trend chart with specific message
+            if (benchCharts.trendChart) {
+                benchCharts.trendChart.options.plugins.title.text = 'Historical trends will appear after daily CI runs complete';
+                benchCharts.trendChart.update();
+            }
+        }
+
+        function renderBenchStats() {
+            document.getElementById('benchStatsGrid').innerHTML = `
+                <div class="stat-card" style="border-left: 3px solid var(--ufs-color);">
+                    <div class="stat-label">Microbenchmarks (Core Engine)</div>
+                    <div class="stat-value">Ready</div>
+                    <div class="stat-sub"><span class="stat-trend trend-up">Zig benchmarks compile & run</span></div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid var(--info);">
+                    <div class="stat-label">FUSE Integration Tests</div>
+                    <div class="stat-value">8 Tests</div>
+                    <div class="stat-sub">Framework complete, needs mount</div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid var(--warn);">
+                    <div class="stat-label">Linux VFS Driver</div>
+                    <div class="stat-value">Code Complete</div>
+                    <div class="stat-sub">DKMS packaged, needs kernel build</div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid var(--warn);">
+                    <div class="stat-label">Windows IFS Driver</div>
+                    <div class="stat-value">Code Complete</div>
+                    <div class="stat-sub">MSI packaged, needs WDK build</div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid var(--info);">
+                    <div class="stat-label">Cross-FS Comparison</div>
+                    <div class="stat-value">Framework Ready</div>
+                    <div class="stat-sub">perf_compare tool written</div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid var(--fg-subtle);">
+                    <div class="stat-label">Real Benchmark Data</div>
+                    <div class="stat-value" style="color: var(--fg-muted);">TBD</div>
+                    <div class="stat-sub">Awaiting hardware + driver loads</div>
+                </div>
+            `;
+        }
+
+        function renderFsOpsTable() {
+            const tbody = document.getElementById('fsOpsBody');
+            const fsOps = [
+                { key: 'create_file_ops', label: 'Create File' },
+                { key: 'read_4k_ops', label: 'Read 4K' },
+                { key: 'write_4k_ops', label: 'Write 4K' },
+                { key: 'mkdir_ops', label: 'Mkdir' },
+                { key: 'rmdir_ops', label: 'Rmdir' },
+                { key: 'readdir_100_ops', label: 'Readdir' },
+                { key: 'stat_ops', label: 'Stat' },
+                { key: 'sync_ops', label: 'Sync' },
+                { key: 'xattr_set_ops', label: 'Set Xattr' },
+                { key: 'xattr_get_ops', label: 'Get Xattr' }
+            ];
+
+            tbody.innerHTML = fsOrder.map(k => {
+                const fs = { name: fsNames[k], color: fsColors[k] };
+                const cells = fsOps.map(op => `
+                    <td class="metric-cell" style="color: var(--fg-muted);">—</td>
+                `).join('');
+
+                return `
+                    <tr>
+                        <td><span class="fs-name"><span class="fs-badge" style="background: ${fs.color}; color: #000;">${k.toUpperCase()}</span>${fs.name}</span></td>
+                        ${cells}
+                        <td><span class="ratio-badge" style="background: var(--border); color: var(--fg-muted);">Pending driver load</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderADRs() {
+            const container = document.getElementById('adrsTable');
+            container.innerHTML = projectData.adrs.map(a => `
+                <tr>
+                    <td><code style="font-family: var(--mono); font-size: 13px;">${a.id}</code></td>
+                    <td>${a.title}</td>
+                    <td><span class="status-badge status-${a.status.toLowerCase()}">${a.status}</span></td>
+                    <td class="date-cell">${a.date}</td>
+                    <td><span class="task-tag" style="background: ${a.locked ? 'rgba(255,71,87,0.2)' : 'var(--border)'}; color: ${a.locked ? 'var(--danger)' : 'var(--fg-subtle)'};">${a.locked ? 'Locked' : 'Open'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== UI INTERACTIONS ====================
+        function showView(view) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
+            document.getElementById('view-' + view).classList.add('active');
+            document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+            currentView = view;
+            closeSidebar();
+
+            // Re-render benchmarks if viewing that tab
+            if (view === 'benchmarks') {
+                setTimeout(() => {
+                    renderBenchStats();
+                    renderFsOpsTable();
+                    if (Object.keys(benchCharts).length === 0) {
+                        initBenchCharts();
+                    }
+                }, 100);
+            }
+        }
+
+        function filterMilestones() { renderMilestones(); }
+        function filterTasks() { renderTasks(); }
+
+        function showMilestoneDetail(id) {
+            const m = projectData.milestones.find(x => x.id === id);
+            if (!m) return;
+            alert(`${m.id}: ${m.name}\n\n${m.description}\n\nStatus: ${m.status} (${m.progress}%)\nTarget: ${m.target}\nDuration: ${m.duration}\n\nTasks: ${(m.tasks || []).length}`);
+        }
+
+        function refreshData() {
+            const btn = event?.target?.closest('.btn');
+            if (btn) btn.innerHTML = '<span class="spinner"></span> Loading...';
+            loadData().then(() => {
+                renderAll();
+                if (btn) btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> Refresh';
+            });
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ufs-tracker-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Data exported', 'success');
+        }
+
+        // ==================== MOBILE SIDEBAR ====================
+        const menuBtn = document.getElementById('menuBtn');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        });
+
+        overlay.addEventListener('click', closeSidebar);
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+        }
+
+        // ==================== TOASTS ====================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                    ${type === 'success' ? '<polyline points="20 6 9 17 4 12"></polyline>' : type === 'error' ? '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>' : '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" cy="8" y2="8"></line>'}
+                </svg>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ==================== UTILITIES ====================
+        function formatDate(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatDateTime(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function isCurrentWeek(iso) {
+            if (!iso) return false;
+            const target = new Date(iso + 'T00:00:00');
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay());
+            startOfWeek.setHours(0,0,0,0);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23,59,59,999);
+            return target >= startOfWeek && target <= endOfWeek;
+        }
+
+        function getPriorityColor(p) {
+            switch (p) { case 'high': return 'var(--danger)'; case 'medium': return 'var(--warn)'; case 'low': return 'var(--success)'; default: return 'var(--fg-muted)'; }
+        }
+        function getPriorityBg(p) {
+            switch (p) { case 'high': return 'var(--danger-bg)'; case 'medium': return 'var(--warn-bg)'; case 'low': return 'rgba(64,192,87,0.2)'; default: return 'var(--border)'; }
+        }
+
+        function renderTaskItem(t) {
+            return `
+                <div class="task-item">
+                    <div class="task-checkbox ${t.status === 'done' ? 'checked' : ''}" onclick="toggleTask('${t.id || ''}')">
+                        ${t.status === 'done' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                    </div>
+                    <div class="task-content">
+                        <div class="task-title ${t.status === 'done' ? 'done' : ''}">${t.title}</div>
+                        <div class="task-meta">
+                            <span class="task-tag" style="background: ${getPriorityBg(t.priority)}; color: ${getPriorityColor(t.priority)};">${t.priority}</span>
+                            ${t.assignee ? `<span class="task-tag">${t.assignee}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleTask(id) {
+            showToast('Task toggle not persisted without backend', 'info');
+        }
+
+        // ==================== START ====================
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

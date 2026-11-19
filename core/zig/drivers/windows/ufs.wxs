@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UFS Windows IFS Driver - WiX Installer -->
+<!-- Build with: candle ufs.wxs && light ufs.wixobj -ext WixUtilExtension -o UFS-1.0.0.msi -->
+<!-- Requires WiX Toolset v3.11+ -->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <Product Id="*"
+           Name="UFS Filesystem Driver"
+           Language="1033"
+           Version="1.0.0.0"
+           Manufacturer="UFS Project"
+           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="x64"
+             Description="UFS (Universal Filesystem) Driver for Windows 10/11"
+             Manufacturer="UFS Project"
+             InstallPrivileges="elevated" />
+
+    <!-- Major upgrade handling -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of UFS is already installed." />
+
+    <!-- Media -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Features -->
+    <Feature Id="Complete" Title="UFS Filesystem Driver" Level="1">
+      <ComponentRef Id="DriverFiles" />
+      <ComponentRef Id="InfFile" />
+      <ComponentRef Id="CatalogFile" />
+      <ComponentRef Id="InstallScript" />
+      <ComponentRef Id="UninstallScript" />
+    </Feature>
+
+    <!-- Driver component group -->
+    <ComponentGroup Id="DriverComponents" Directory="DriverDir">
+      <Component Id="DriverFiles" Guid="{B2C3D4E5-F6A7-8901-BCDE-F23456789012}" Win64="yes">
+        <File Id="UFSsys" Source="x64\Release\ufs.sys" KeyPath="yes" />
+        <File Id="UFSinf" Source="ufs.inf" />
+        <Condition>NOT REMOVE</Condition>
+      </Component>
+
+      <Component Id="InfFile" Guid="{C3D4E5F6-A7B8-9012-CDEF-345678901234}" Win64="yes">
+        <File Id="UFSinf2" Source="ufs.inf" KeyPath="yes" />
+        <Condition>NOT REMOVE</Condition>
+      </Component>
+
+      <Component Id="CatalogFile" Guid="{D4E5F6A7-B8C9-0123-DEFA-456789012345}" Win64="yes">
+        <File Id="UFScat" Source="x64\Release\ufs.cat" KeyPath="yes" />
+        <Condition>NOT REMOVE AND EXISTS("<SourceDir>\x64\Release\ufs.cat")</Condition>
+      </Component>
+    </ComponentGroup>
+
+    <!-- Install script component -->
+    <Component Id="InstallScript" Guid="{E5F6A7B8-C9D0-1234-EFAB-567890123456}" Win64="yes" Directory="SystemFolder">
+      <File Id="Dpinst" Source="tools\dpinst.exe" KeyPath="yes" />
+      <Condition>NOT REMOVE</Condition>
+    </Component>
+
+    <!-- Uninstall script component -->
+    <Component Id="UninstallScript" Guid="{F6A7B8C9-D0E1-2345-FABC-678901234567}" Win64="yes" Directory="SystemFolder">
+      <File Id="DpinstUninstall" Source="tools\dpinst.exe" KeyPath="yes" />
+      <Condition>REMOVE</Condition>
+    </Component>
+
+    <!-- Custom actions for driver install/uninstall -->
+    <CustomAction Id="InstallDriver"
+                  Directory="SystemFolder"
+                  ExeCommand="dpinst.exe /path x64\Release /s /lm"
+                  Return="check"
+                  Execute="deferred"
+                  Impersonate="no" />
+
+    <CustomAction Id="UninstallDriver"
+                  Directory="SystemFolder"
+                  ExeCommand="dpinst.exe /u /path x64\Release /s /lm"
+                  Return="check"
+                  Execute="deferred"
+                  Impersonate="no" />
+
+    <CustomAction Id="SetDriverPath"
+                  Property="DRIVER_PATH"
+                  Value="[INSTALLDIR]x64\Release"
+                  Execute="immediate" />
+
+    <!-- Install execute sequence -->
+    <InstallExecuteSequence>
+      <Custom Action="SetDriverPath" Before="InstallDriver">NOT Installed</Custom>
+      <Custom Action="InstallDriver" After="InstallFiles">NOT Installed AND NOT REMOVE</Custom>
+      <Custom Action="UninstallDriver" After="InstallInitialize">Installed AND REMOVE</Custom>
+    </InstallExecuteSequence>
+
+    <!-- UI -->
+    <UIRef Id="WixUI_Minimal" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- Properties -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <Property Id="DRIVER_PATH" Value="" />
+
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+
+    <!-- Icon -->
+    <Icon Id="icon.ico" SourceFile="resources\ufs.ico" />
+    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+
+  </Product>
+
+  <!-- Fragment for directory structure -->
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder" Name="PFiles">
+        <Directory Id="INSTALLDIR" Name="UFS">
+          <Directory Id="DriverDir" Name="Driver" />
+          <Directory Id="ToolsDir" Name="Tools" />
+        </Directory>
+      </Directory>
+      <Directory Id="SystemFolder" Name="System32" />
+    </Directory>
+  </Fragment>
+
+  <!-- Fragment for component directories -->
+  <Fragment>
+    <ComponentGroup Id="DriverComponents" Directory="DriverDir">
+      <ComponentRef Id="DriverFiles" />
+      <ComponentRef Id="InfFile" />
+      <ComponentRef Id="CatalogFile" />
+    </ComponentGroup>
+  </Fragment>
+
+</Wix>

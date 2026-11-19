@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <Keyword>KernelModeDriver</Keyword>
+    <RootNamespace>UFS</RootNamespace>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\KernelModeDriver.props" />
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>FileSystem</DriverType>
+    <TargetVersion>Windows11</TargetVersion>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    <Optimization>Disabled</Optimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <SpectreMitigation>true</SpectreMitigation>
+    <ControlFlowGuard>true</ControlFlowGuard>
+    <EnableKernelModeStackProbing>true</EnableKernelModeStackProbing>
+    <GuardCF>guard_cf</GuardCF>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    <Optimization>MaxSpeed</Optimization>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <SpectreMitigation>true</SpectreMitigation>
+    <ControlFlowGuard>true</ControlFlowGuard>
+    <EnableKernelModeStackProbing>true</EnableKernelModeStackProbing>
+    <GuardCF>guard_cf</GuardCF>
+    <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    <Optimization>Disabled</Optimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <SpectreMitigation>true</SpectreMitigation>
+    <ControlFlowGuard>true</ControlFlowGuard>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    <Optimization>MaxSpeed</Optimization>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <SpectreMitigation>true</SpectreMitigation>
+    <ControlFlowGuard>true</ControlFlowGuard>
+    <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ClCompile Include="ufs_ifs.c">
+      <AdditionalIncludeDirectories>../../src;$(KernelIncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_KERNEL_MODE;UFS_DRIVER;DBG=%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level4</WarningLevel>
+      <TreatSpecificWarningsAsErrors>4100;4101;4189;4244;4245;4267;4389;4706;4715;4738;4820;4826;4996</TreatSpecificWarningsAsErrors>
+      <DisableSpecificWarnings>4200;4201;4214;4820</DisableSpecificWarnings>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Fast</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <Architecture>x64</Architecture>
+    </ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClCompile Include="ufs_blockdev_win.c">
+      <AdditionalIncludeDirectories>../../src;$(KernelIncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_KERNEL_MODE;UFS_DRIVER;DBG=%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClCompile Include="ufs_crypto_win.c">
+      <AdditionalIncludeDirectories>../../src;$(KernelIncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_KERNEL_MODE;UFS_DRIVER;DBG=%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Link>
+      <AdditionalDependencies>ntoskrnl.lib;fltMgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DriverType>FileSystem</DriverType>
+      <SubSystem>Native</SubSystem>
+      <EntryPointSymbol>DriverEntry</EntryPointSymbol>
+      <GenerateManifest>false</GenerateManifest>
+      <IgnoreDefaultLibraryNames>libcmt.lib;libcpmt.lib;msvcrt.lib</IgnoreDefaultLibraryNames>
+      <AdditionalOptions>/INTEGRITYCHECK /DYNAMICBASE:NO %(AdditionalOptions)</AdditionalOptions>
+      <LargeAddressAware>false</LargeAddressAware>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+    </Link>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="ufs.inf" />
+  </ItemGroup>
+
+  <!-- Post-build: Sign the driver -->
+  <Target Name="SignDriver" AfterTargets="Build" Condition="'$(Configuration)'=='Release'">
+    <Exec Command="signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "UFS Filesystem Driver" /du "https://ufs.example.com" "$(TargetPath)"" />
+  </Target>
+
+  <!-- Post-build: Create catalog -->
+  <Target Name="CreateCatalog" AfterTargets="SignDriver" Condition="'$(Configuration)'=='Release'">
+    <Exec Command="inf2cat /driver:$(OutDir) /os:10_X64,10_ARM64,Server10_X64,Server10_ARM64" />
+    <Exec Command="signtool sign /a /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "$(OutDir)ufs.cat"" />
+  </Target>
+
+  <!-- Package for distribution -->
+  <Target Name="PackageDriver" AfterTargets="CreateCatalog" Condition="'$(Configuration)'=='Release'">
+    <MakeDir Directories="$(OutDir)Package" />
+    <Copy SourceFiles="$(TargetPath);$(OutDir)ufs.inf;$(OutDir)ufs.cat" DestinationFolder="$(OutDir)Package" />
+    <Message Text="Driver package created at $(OutDir)Package" Importance="high" />
+  </Target>
+</Project>

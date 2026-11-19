@@ -1,0 +1,95 @@
+# UFS Filesystem Kernel Configuration
+# Add to fs/Kconfig in kernel source tree
+
+config UFS_FS
+	tristate "UFS filesystem support (Universal Filesystem)"
+	depends on BLOCK
+	select CRC32
+	select BLAKE3
+	help
+	  UFS (Universal Filesystem) is a cross-platform filesystem designed for
+	  Windows, Linux, macOS, and UEFI environments. It features Metadata
+	  Capsules for lossless cross-platform metadata preservation, logical
+	  redo journaling, per-extent compression (LZ4/ZSTD), and dual-layer
+	  integrity (CRC32C metadata + BLAKE3 data).
+
+	  Say M to compile as a module (ufs.ko), Y to build into kernel.
+
+config UFS_FS_DEBUG
+	bool "UFS debugging support"
+	depends on UFS_FS
+	help
+	  Enable debugging output for UFS filesystem. This will increase
+	  kernel size and decrease performance, but provides detailed
+	  logs for troubleshooting.
+
+config UFS_FS_COMPRESSION
+	bool "Enable per-file compression (LZ4/ZSTD)"
+	depends on UFS_FS
+	default y
+	select LZ4
+	select ZSTD
+	help
+	  Enable transparent per-extent compression using LZ4 or ZSTD.
+	  Compression is applied automatically based on data entropy.
+
+config UFS_FS_INTEGRITY
+	bool "Enable data integrity verification (BLAKE3)"
+	depends on UFS_FS
+	default y
+	help
+	  Enable BLAKE3 checksums for file data. This provides strong
+	  integrity guarantees but uses additional space and CPU.
+
+config UFS_FS_POSIX_ACL
+	bool "POSIX Access Control Lists support"
+	depends on UFS_FS
+	default y
+	select FS_POSIX_ACL
+	help
+	  Enable POSIX ACL support via Metadata Capsules.
+
+config UFS_FS_SECURITY
+	bool "Security labels (xattr) support"
+	depends on UFS_FS
+	default y
+	help
+	  Enable security.* extended attributes for LSM integration.
+
+config UFS_FS_XATTR
+	bool "Extended attributes support"
+	depends on UFS_FS
+	default y
+	help
+	  Enable user.*, system.*, trusted.* extended attributes
+	  via Metadata Capsules.
+
+config UFS_FS_QUOTA
+	bool "Quota support"
+	depends on UFS_FS
+	default n
+	help
+	  Enable disk quota support (experimental).
+
+config UFS_FS_CASE_INSENSITIVE
+	bool "Case-insensitive filename lookup"
+	depends on UFS_FS
+	default y
+	help
+	  Enable case-insensitive with case-preservation semantics
+	  (similar to APFS/NTFS). Uses Unicode 15.0 case folding.
+
+config UFS_FS_STATS
+	bool "Filesystem statistics via /proc/fs/ufs/"
+	depends on UFS_FS && PROC_FS
+	default y
+	help
+	  Export filesystem statistics via procfs.
+
+config UFS_FS_STRICT
+	bool "Strict metadata validation (slower, safer)"
+	depends on UFS_FS
+	default n
+	help
+	  Enable additional runtime validation of on-disk structures.
+	  Useful for development and testing.

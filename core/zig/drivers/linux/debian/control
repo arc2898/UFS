@@ -1,0 +1,21 @@
+Source: ufs-dkms
+Section: kernel
+Priority: optional
+Maintainer: UFS Project <ufs@example.com>
+Build-Depends: debhelper-compat (= 13), dkms, linux-headers-generic | linux-headers-$(uname -r)
+Standards-Version: 4.6.2
+Homepage: https://github.com/ufs-project/ufs
+Vcs-Git: https://github.com/ufs-project/ufs.git
+Vcs-Browser: https://github.com/ufs-project/ufs
+
+Package: ufs-dkms
+Architecture: all
+Depends: ${misc:Depends}, dkms, linux-headers-generic | linux-headers-$(uname -r)
+Description: UFS (Universal Filesystem) kernel module - DKMS source
+ UFS is a cross-platform filesystem designed for Windows, Linux, macOS, and UEFI.
+ It features Metadata Capsules for lossless cross-platform metadata preservation,
+ logical redo journaling, per-extent compression (LZ4/ZSTD), and dual-layer
+ integrity (CRC32C metadata + BLAKE3 data).
+ .
+ This package contains the DKMS source for building the UFS kernel module
+ automatically for each installed kernel.

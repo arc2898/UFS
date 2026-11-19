@@ -1,0 +1,71 @@
+#!/bin/bash
+# UFS DKMS config_check - Verify kernel compatibility
+# Called by DKMS before building
+
+set -e
+
+# Check for required kernel config options
+check_config() {
+    local config="$1"
+    local desc="$2"
+
+    if grep -q "^$config=y" /lib/modules/$(uname -r)/build/.config 2>/dev/null; then
+        echo "✓ $config ($desc)"
+        return 0
+    elif grep -q "^$config=m" /lib/modules/$(uname -r)/build/.config 2>/dev/null; then
+        echo "✓ $config ($desc) [module]"
+        return 0
+    else
+        echo "✗ $config ($desc) - REQUIRED"
+        return 1
+    fi
+}
+
+check_optional() {
+    local config="$1"
+    local desc="$2"
+
+    if grep -q "^$config=y" /lib/modules/$(uname -r)/build/.config 2>/dev/null; then
+        echo "✓ $config ($desc)"
+    elif grep -q "^$config=m" /lib/modules/$(uname -r)/build/.config 2>/dev/null; then
+        echo "✓ $config ($desc) [module]"
+    else
+        echo "⚠ $config ($desc) - optional"
+    fi
+}
+
+echo "Checking kernel configuration for UFS..."
+
+MISSING=0
+
+# Required kernel features
+check_config "CONFIG_BLOCK" "Block device support" || ((MISSING++))
+check_config "CONFIG_FS_POSIX_ACL" "POSIX ACL support" || ((MISSING++))
+check_config "CONFIG_CRC32" "CRC32 support" || ((MISSING++))
+check_config "CONFIG_BLK_DEV_LOOP" "Loop device support" || ((MISSING++))
+
+# Optional but recommended
+check_optional "CONFIG_LZ4" "LZ4 compression"
+check_optional "CONFIG_ZSTD" "ZSTD compression"
+check_optional "CONFIG_CRYPTO_BLAKE3" "BLAKE3 hash"
+check_optional "CONFIG_KALLSYMS_ALL" "All kernel symbols"
+check_optional "CONFIG_DEBUG_FS" "Debug filesystem"
+
+# Kernel version check
+KERNEL_VER=$(uname -r | cut -d. -f1,2)
+MAJOR=$(echo $KERNEL_VER | cut -d. -f1)
+MINOR=$(echo $KERNEL_VER | cut -d. -f2)
+
+if [[ $MAJOR -lt 5 ]] || [[ $MAJOR -eq 5 && $MINOR -lt 15 ]]; then
+    echo "⚠ Kernel $KERNEL_VER - UFS requires 5.15+ for full feature support"
+fi
+
+echo ""
+if [[ $MISSING -gt 0 ]]; then
+    echo "ERROR: $MISSING required kernel config options missing"
+    echo "Enable them in kernel config or install a newer kernel"
+    exit 1
+else
+    echo "All required kernel features available"
+    exit 0
+fi
